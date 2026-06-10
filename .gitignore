@@ -1,0 +1,6 @@
+backend/ai/envirofix_knowledge/
+*.safetensors
+*.bin
+backend/ai/envirofix_knowledge/
+*.safetensors
+*.bin
