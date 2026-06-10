@@ -1,0 +1,598 @@
+import { useState, useEffect } from 'react'
+import axios from 'axios'
+
+const API = 'http://localhost:7070'
+
+function StatusDot({ status }) {
+  const colors = {
+    healthy: '#00d68f',
+    issues_found: '#f0b429',
+    critical: '#ff4757',
+    warning: '#f0b429',
+    info: '#4a9eff'
+  }
+  return (
+    <span style={{
+      display: 'inline-block',
+      width: 10, height: 10,
+      borderRadius: '50%',
+      background: colors[status] || '#888',
+      marginRight: 8
+    }} />
+  )
+}
+
+function Card({ title, children, style = {} }) {
+  return (
+    <div style={{
+      background: '#0a1828',
+      border: '1px solid #1a2d45',
+      borderRadius: 12,
+      padding: 20,
+      ...style
+    }}>
+      {title && (
+        <div style={{
+          fontSize: 13,
+          fontWeight: 700,
+          color: '#4a9eff',
+          textTransform: 'uppercase',
+          letterSpacing: 1,
+          marginBottom: 14
+        }}>
+          {title}
+        </div>
+      )}
+      {children}
+    </div>
+  )
+}
+
+function StatCard({ label, value, color = '#4a9eff' }) {
+  return (
+    <div style={{
+      background: '#0a1828',
+      border: `1px solid ${color}33`,
+      borderRadius: 12,
+      padding: 20,
+      textAlign: 'center'
+    }}>
+      <div style={{
+        fontSize: 36,
+        fontWeight: 800,
+        color,
+        fontFamily: 'monospace'
+      }}>
+        {value}
+      </div>
+      <div style={{
+        fontSize: 12,
+        color: '#4a6080',
+        marginTop: 4,
+        textTransform: 'uppercase',
+        letterSpacing: 1
+      }}>
+        {label}
+      </div>
+    </div>
+  )
+}
+
+export default function App() {
+  const [summary, setSummary]   = useState(null)
+  const [alerts, setAlerts]     = useState([])
+  const [tools, setTools]       = useState(null)
+  const [history, setHistory]   = useState([])
+  const [loading, setLoading]   = useState(true)
+  const [scanning, setScanning] = useState(false)
+  const [tab, setTab]           = useState('overview')
+  const [aiResult, setAiResult] = useState(null)
+  const [aiLoading, setAiLoading] = useState(false)
+
+  const fetchAll = async () => {
+    try {
+      const [s, a, t, h] = await Promise.all([
+        axios.get(`${API}/summary`),
+        axios.get(`${API}/alerts`),
+        axios.get(`${API}/tools`),
+        axios.get(`${API}/history`)
+      ])
+      setSummary(s.data)
+      setAlerts(a.data)
+      setTools(t.data)
+      setHistory(h.data)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const runScan = async () => {
+    setScanning(true)
+    try {
+      await axios.get(`${API}/scan`)
+      await fetchAll()
+    } finally {
+      setScanning(false)
+    }
+  }
+
+  const analyseAlert = async (alert) => {
+    setAiLoading(true)
+    setAiResult(null)
+    try {
+      const res = await axios.post(`${API}/analyse`, {
+        type:   alert.title,
+        detail: alert.detail,
+        fix:    alert.fix
+      })
+      setAiResult(res.data)
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  useEffect(() => { fetchAll() }, [])
+
+  const severityColor = (s) => ({
+    critical: '#ff4757',
+    warning:  '#f0b429',
+    info:     '#4a9eff'
+  })[s] || '#888'
+
+  if (loading) return (
+    <div style={{
+      background: '#070d17',
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: '#4a9eff',
+      fontFamily: 'monospace',
+      fontSize: 18
+    }}>
+      EnviroFix loading...
+    </div>
+  )
+
+  return (
+    <div style={{
+      background: '#070d17',
+      minHeight: '100vh',
+      color: '#c8d8e8',
+      fontFamily: 'system-ui, sans-serif'
+    }}>
+
+      {/* Header */}
+      <div style={{
+        background: '#0a1525',
+        borderBottom: '1px solid #1a2d45',
+        padding: '0 24px',
+        display: 'flex',
+        alignItems: 'center',
+        height: 56,
+        gap: 24
+      }}>
+        <div style={{
+          fontWeight: 800,
+          fontSize: 20,
+          color: '#fff'
+        }}>
+          🛡 EnviroFix
+        </div>
+
+        {/* Tabs */}
+        {['overview', 'alerts', 'tools', 'history'].map(t => (
+          <button key={t} onClick={() => setTab(t)} style={{
+            background: 'none',
+            border: 'none',
+            borderBottom: tab === t ? '2px solid #4a9eff' : '2px solid transparent',
+            color: tab === t ? '#4a9eff' : '#6a8aaa',
+            padding: '4px 8px',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            fontSize: 13,
+            fontWeight: 600,
+            textTransform: 'capitalize'
+          }}>
+            {t}
+          </button>
+        ))}
+
+        <div style={{ flex: 1 }} />
+
+        <div style={{
+          fontSize: 12,
+          color: summary?.status === 'healthy' ? '#00d68f' : '#f0b429',
+          fontWeight: 700
+        }}>
+          <StatusDot status={summary?.status} />
+          {summary?.status === 'healthy' ? 'HEALTHY' : 'ISSUES FOUND'}
+        </div>
+
+        <button onClick={runScan} disabled={scanning} style={{
+          background: '#0077cc22',
+          border: '1px solid #0077cc66',
+          borderRadius: 8,
+          padding: '6px 14px',
+          color: '#4a9eff',
+          cursor: scanning ? 'wait' : 'pointer',
+          fontSize: 12,
+          fontWeight: 600,
+          fontFamily: 'inherit'
+        }}>
+          {scanning ? 'Scanning...' : '▶ Scan Now'}
+        </button>
+      </div>
+
+      {/* Content */}
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: 24 }}>
+
+        {/* OVERVIEW TAB */}
+        {tab === 'overview' && summary && (
+          <div>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: 16,
+              marginBottom: 24
+            }}>
+              <StatCard
+                label="Total Issues"
+                value={summary.total_issues}
+                color={summary.total_issues === 0 ? '#00d68f' : '#ff4757'}
+              />
+              <StatCard
+                label="Packages Installed"
+                value={summary.apt.total_installed}
+                color="#4a9eff"
+              />
+              <StatCard
+                label="GPG Missing Keys"
+                value={summary.gpg.missing_keys}
+                color={summary.gpg.missing_keys === 0 ? '#00d68f' : '#ff4757'}
+              />
+              <StatCard
+                label="Kernel Issues"
+                value={summary.kernel.issues}
+                color={summary.kernel.issues === 0 ? '#00d68f' : '#f0b429'}
+              />
+            </div>
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: 16
+            }}>
+              <Card title="System Status">
+                {[
+                  ['Kernel', summary.kernel.version, '#4a9eff'],
+                  ['Headers', summary.kernel.headers_installed ? 'Installed' : 'Missing', summary.kernel.headers_installed ? '#00d68f' : '#ff4757'],
+                  ['VPN', summary.network.vpn_active ? 'Active' : 'Not detected', summary.network.vpn_active ? '#00d68f' : '#f0b429'],
+                  ['Interfaces', summary.network.interfaces.join(', '), '#8896aa'],
+                  ['APT Errors', summary.apt.apt_errors, summary.apt.apt_errors === 0 ? '#00d68f' : '#ff4757'],
+                  ['Broken Packages', summary.apt.broken_packages, summary.apt.broken_packages === 0 ? '#00d68f' : '#ff4757'],
+                ].map(([k, v, c]) => (
+                  <div key={k} style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    padding: '8px 0',
+                    borderBottom: '1px solid #0d1e30',
+                    fontSize: 13
+                  }}>
+                    <span style={{ color: '#6a8aaa' }}>{k}</span>
+                    <span style={{ color: c, fontFamily: 'monospace' }}>{v}</span>
+                  </div>
+                ))}
+              </Card>
+
+              <Card title="Active Alerts">
+                {alerts.length === 0 ? (
+                  <div style={{ color: '#00d68f', fontSize: 13 }}>
+                    ✓ No active alerts
+                  </div>
+                ) : alerts.map((a, i) => (
+                  <div key={i} style={{
+                    padding: '10px 12px',
+                    background: '#0d1e30',
+                    borderRadius: 8,
+                    marginBottom: 8,
+                    borderLeft: `3px solid ${severityColor(a.severity)}`
+                  }}>
+                    <div style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: '#c8d8e8'
+                    }}>
+                      {a.title}
+                    </div>
+                    <div style={{
+                      fontSize: 11,
+                      color: '#4a6080',
+                      marginTop: 2
+                    }}>
+                      {a.detail}
+                    </div>
+                  </div>
+                ))}
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {/* ALERTS TAB */}
+        {tab === 'alerts' && (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 400px',
+            gap: 16
+          }}>
+            <div>
+              <div style={{
+                fontSize: 18,
+                fontWeight: 700,
+                color: '#e0ecf8',
+                marginBottom: 16
+              }}>
+                Smart Alerts
+              </div>
+              {alerts.length === 0 ? (
+                <Card>
+                  <div style={{ color: '#00d68f' }}>✓ No active alerts</div>
+                </Card>
+              ) : alerts.map((a, i) => (
+                <div key={i} onClick={() => analyseAlert(a)} style={{
+                  background: '#0a1828',
+                  border: `1px solid ${severityColor(a.severity)}33`,
+                  borderRadius: 12,
+                  padding: 16,
+                  marginBottom: 10,
+                  cursor: 'pointer'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    marginBottom: 6
+                  }}>
+                    <span style={{
+                      background: `${severityColor(a.severity)}22`,
+                      color: severityColor(a.severity),
+                      border: `1px solid ${severityColor(a.severity)}44`,
+                      borderRadius: 4,
+                      padding: '2px 8px',
+                      fontSize: 11,
+                      fontWeight: 700
+                    }}>
+                      {a.severity.toUpperCase()}
+                    </span>
+                    <span style={{
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: '#e0ecf8'
+                    }}>
+                      {a.title}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 12, color: '#6a8aaa', marginBottom: 8 }}>
+                    {a.detail}
+                  </div>
+                  <div style={{
+                    fontFamily: 'monospace',
+                    fontSize: 12,
+                    color: '#00d68f',
+                    background: '#060f1a',
+                    padding: '6px 10px',
+                    borderRadius: 6
+                  }}>
+                    $ {a.fix}
+                  </div>
+                  <div style={{
+                    fontSize: 11,
+                    color: '#3a5070',
+                    marginTop: 6
+                  }}>
+                    Click to get AI analysis →
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* AI Panel */}
+            <Card title="AI Analysis" style={{ position: 'sticky', top: 80, height: 'fit-content' }}>
+              {aiLoading && (
+                <div style={{ color: '#4a9eff', fontSize: 13 }}>
+                  Mistral is thinking...
+                </div>
+              )}
+              {!aiLoading && !aiResult && (
+                <div style={{ color: '#3a5070', fontSize: 13 }}>
+                  Click an alert to get AI root cause analysis
+                </div>
+              )}
+              {!aiLoading && aiResult && (
+                <div>
+                  {[
+                    ['Severity',   aiResult.severity,   '#ff4757'],
+                    ['Risk Level', aiResult.risk_level, '#f0b429'],
+                  ].map(([k, v, c]) => (
+                    <div key={k} style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      marginBottom: 8,
+                      fontSize: 13
+                    }}>
+                      <span style={{ color: '#6a8aaa' }}>{k}</span>
+                      <span style={{ color: c, fontWeight: 700 }}>{v}</span>
+                    </div>
+                  ))}
+
+                  {[
+                    ['Root Cause',   aiResult.root_cause],
+                    ['Explanation',  aiResult.explanation],
+                    ['Teaches',      aiResult.teaches],
+                  ].map(([k, v]) => v && (
+                    <div key={k} style={{ marginBottom: 12 }}>
+                      <div style={{
+                        fontSize: 11,
+                        color: '#3a5070',
+                        textTransform: 'uppercase',
+                        letterSpacing: 1,
+                        marginBottom: 4
+                      }}>
+                        {k}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#8096b0', lineHeight: 1.6 }}>
+                        {v}
+                      </div>
+                    </div>
+                  ))}
+
+                  {aiResult.fix_steps?.length > 0 && (
+                    <div>
+                      <div style={{
+                        fontSize: 11,
+                        color: '#3a5070',
+                        textTransform: 'uppercase',
+                        letterSpacing: 1,
+                        marginBottom: 6
+                      }}>
+                        Fix Commands
+                      </div>
+                      {aiResult.fix_steps.map((step, i) => (
+                        <div key={i} style={{
+                          fontFamily: 'monospace',
+                          fontSize: 12,
+                          color: '#00d68f',
+                          background: '#060f1a',
+                          padding: '6px 10px',
+                          borderRadius: 6,
+                          marginBottom: 4
+                        }}>
+                          $ {step}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </Card>
+          </div>
+        )}
+
+        {/* TOOLS TAB */}
+        {tab === 'tools' && tools && (
+          <div>
+            <div style={{
+              fontSize: 18,
+              fontWeight: 700,
+              color: '#e0ecf8',
+              marginBottom: 16
+            }}>
+              Tool Inventory
+            </div>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: 16,
+              marginBottom: 24
+            }}>
+              <StatCard label="Total Packages" value={tools.total_installed} color="#4a9eff" />
+              <StatCard label="Kernel Version" value={tools.kernel_version?.split('-')[0]} color="#00d68f" />
+              <StatCard label="Libraries Found" value={Object.keys(tools.libraries || {}).length} color="#f0b429" />
+            </div>
+            <Card title="Critical Library Versions">
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: 8
+              }}>
+                {Object.entries(tools.libraries || {}).slice(0, 20).map(([k, v]) => (
+                  <div key={k} style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    padding: '8px 12px',
+                    background: '#0d1e30',
+                    borderRadius: 6,
+                    fontSize: 12
+                  }}>
+                    <span style={{
+                      color: '#6a8aaa',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      maxWidth: '60%'
+                    }}>
+                      {k.replace('_version', '')}
+                    </span>
+                    <span style={{
+                      color: '#00d68f',
+                      fontFamily: 'monospace'
+                    }}>
+                      {v}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* HISTORY TAB */}
+        {tab === 'history' && (
+          <div>
+            <div style={{
+              fontSize: 18,
+              fontWeight: 700,
+              color: '#e0ecf8',
+              marginBottom: 16
+            }}>
+              Scan History
+            </div>
+            <Card>
+              {history.length === 0 ? (
+                <div style={{ color: '#3a5070' }}>No scans yet</div>
+              ) : history.map((h, i) => (
+                <div key={i} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: '10px 0',
+                  borderBottom: '1px solid #0d1e30',
+                  fontSize: 13
+                }}>
+                  <StatusDot status={h.status} />
+                  <span style={{
+                    color: '#c8d8e8',
+                    fontWeight: 600,
+                    minWidth: 60
+                  }}>
+                    #{h.id}
+                  </span>
+                  <span style={{ color: '#6a8aaa', flex: 1 }}>
+                    {h.scan_type} scan
+                  </span>
+                  <span style={{
+                    color: h.status === 'healthy' ? '#00d68f' : '#f0b429',
+                    fontWeight: 600
+                  }}>
+                    {h.status}
+                  </span>
+                  <span style={{
+                    color: '#3a5070',
+                    fontFamily: 'monospace',
+                    fontSize: 11
+                  }}>
+                    {new Date(h.created_at).toLocaleString()}
+                  </span>
+                </div>
+              ))}
+            </Card>
+          </div>
+        )}
+
+      </div>
+    </div>
+  )
+}

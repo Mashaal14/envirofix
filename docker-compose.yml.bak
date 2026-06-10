@@ -1,0 +1,60 @@
+services:
+
+  backend:
+    build: ./backend
+    container_name: envirofix_backend
+    restart: always
+    ports:
+      - "7070:7070"
+    environment:
+      - DATABASE_URL=postgresql://envirofix:envirofix123@postgres:5432/envirofix
+      - OLLAMA_HOST=http://172.18.0.1:11434
+      - OLLAMA_MODEL=deepseek-r1:8b
+      - OLLAMA_MODEL_CODE=qwen2.5-coder:7b
+      - SCAN_INTERVAL_MINUTES=15
+      - USE_LOCAL_CHROMA=false
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+
+  frontend:
+    build: ./frontend
+    container_name: envirofix_frontend
+    restart: always
+    ports:
+    volumes:
+      - ./frontend:/app
+    volumes:
+      - ./frontend:/app
+      - "3000:3000"
+    depends_on:
+      - backend
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: envirofix_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: envirofix
+      POSTGRES_USER: envirofix
+      POSTGRES_PASSWORD: envirofix123
+    ports:
+    volumes:
+      - ./frontend:/app
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U envirofix"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  knowledge_base:

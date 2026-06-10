@@ -1,0 +1,161 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+import json
+from datetime import datetime
+
+app = FastAPI(title="EnviroFix API", version="1.0.0")
+
+# Add CORS middleware for frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Sample data for testing
+sample_alerts = [
+    {
+        "id": 1,
+        "severity": "warning",
+        "title": "Kernel Headers Missing",
+        "detail": "linux-headers-6.18.12+kali-amd64 not installed. DKMS modules cannot compile.",
+        "tool": "kernel",
+        "fix": "sudo apt install linux-headers-$(uname -r)",
+        "risk_level": "Caution",
+        "created_at": datetime.now().isoformat()
+    },
+    {
+        "id": 2,
+        "severity": "warning", 
+        "title": "VPN Inactive",
+        "detail": "No active VPN interface detected. Tools targeting VPN ranges will fail.",
+        "tool": "network",
+        "fix": "Connect to VPN: sudo openvpn config.ovpn",
+        "risk_level": "Caution",
+        "created_at": datetime.now().isoformat()
+    }
+]
+
+@app.get("/")
+def root():
+    return {"status": "EnviroFix API running", "version": "1.0.0"}
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+@app.get("/health/deep")
+def deep_health():
+    return {
+        "status": "healthy",
+        "components": {
+            "database": "ok",
+            "scanner": "ok", 
+            "ai": "ok",
+            "rag": "ok"
+        }
+    }
+
+@app.get("/scan")
+def trigger_scan():
+    return {
+        "scan_time": datetime.now().isoformat(),
+        "summary": {
+            "total_issues": 2,
+            "status": "issues_found"
+        },
+        "kernel": {
+            "kernel_version": "6.18.12+kali-amd64",
+            "kernel_headers_installed": False,
+            "dkms_installed": False,
+            "issues": ["Kernel headers missing. Run: sudo apt install linux-headers-$(uname -r)"]
+        },
+        "network": {
+            "vpn_active": False,
+            "issues": [{"type": "vpn_down", "detail": "No active VPN interface detected"}]
+        }
+    }
+
+@app.get("/alerts")
+def get_alerts():
+    return sample_alerts
+
+@app.get("/history")
+def get_history():
+    return [
+        {"id": 1, "scan_type": "full", "status": "issues_found", "created_at": datetime.now().isoformat()}
+    ]
+
+@app.get("/system")
+def get_system():
+    return {
+        "kernel": {
+            "kernel_version": "6.18.12+kali-amd64",
+            "kernel_headers_installed": False,
+            "dkms_installed": False
+        },
+        "network": {
+            "interfaces": {"eth0": {"status": "UP", "ip": "172.18.0.2"}, "lo": {"status": "UP", "ip": "127.0.0.1"}},
+            "vpn_active": False
+        }
+    }
+
+@app.get("/rag/status")
+def rag_status():
+    return {"status": "available", "indexed_chunks": 120, "source": "Kali Linux docs"}
+
+@app.get("/tools")
+def get_tools():
+    return {"message": "Tool inventory - coming soon"}
+
+@app.post("/scan-and-alert")
+def scan_and_alert():
+    return {"status": "success", "scan_id": 1, "alerts_created": 2, "total_issues": 2}
+
+@app.post("/analyse")
+def analyse_issue(issue: dict):
+    return {
+        "severity": "warning",
+        "root_cause": "The kernel headers are missing, which are essential for compiling kernel modules.",
+        "affected_components": ["kernel modules", "DKMS", "wireless drivers"],
+        "fix_steps": ["sudo apt-get update", "sudo apt-get install linux-headers-$(uname -r)"],
+        "explanation": "Kernel headers provide the API for compiling kernel modules.",
+        "risk_level": "Safe",
+        "teaches": "You've learned how to diagnose missing system components using apt.",
+        "confidence": "high"
+    }
+
+@app.post("/alerts/{alert_id}/resolve")
+def resolve_alert(alert_id: int):
+    return {"status": "success", "message": f"Alert {alert_id} resolved"}
+
+@app.post("/analyse")
+def analyse_endpoint(issue: dict):
+    """AI analysis using DeepSeek-R1 with REAL system data"""
+    from ai.ai_engine import analyse_issue as ai_analyse
+    
+    try:
+        # Get real-time system data
+        from scanners.kernel_scanner import scan_kernel
+        kernel_data = scan_kernel()
+        
+        # Enhance issue with real data
+        enhanced_issue = {
+            "issue": issue.get("issue", ""),
+            "tool": issue.get("tool", "general"),
+            "kernel_version": kernel_data.get("kernel_version", ""),
+            "headers_installed": kernel_data.get("headers_installed", False),
+            "available_headers": kernel_data.get("available_headers", [])
+        }
+        
+        result = ai_analyse(enhanced_issue)
+        return result
+    except Exception as e:
+        return {
+            "severity": "error",
+            "root_cause": f"AI analysis failed: {str(e)}",
+            "fix_steps": ["Check backend logs: docker logs envirofix_backend"],
+            "confidence": "low"
+        }

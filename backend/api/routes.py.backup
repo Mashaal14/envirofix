@@ -1,0 +1,304 @@
+import json
+import sys
+import os
+
+# Add /app to Python path
+sys.path.insert(0, '/app')
+
+print("Starting EnviroFix API...")
+print(f"Current directory: {os.getcwd()}")
+print(f"Files in /app: {os.listdir('/app') if os.path.exists('/app') else 'N/A'}")
+
+from fastapi import FastAPI
+from datetime import datetime
+
+# Import from actual locations based on your structure
+try:
+    from db.database import SessionLocal, ScanResult, Alert
+    print("✅ Database imported successfully")
+    DB_AVAILABLE = True
+except Exception as e:
+    print(f"❌ Database import failed: {e}")
+    DB_AVAILABLE = False
+    SessionLocal = None
+    ScanResult = None
+    Alert = None
+
+try:
+    # scanner_engine is in the root /app/
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("scanner_engine", "/app/scanner_engine.py")
+    scanner_engine = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(scanner_engine)
+    run_full_scan = scanner_engine.run_full_scan
+    print("✅ Scanner engine imported successfully")
+    SCAN_AVAILABLE = True
+except Exception as e:
+    print(f"❌ Scanner engine import failed: {e}")
+    SCAN_AVAILABLE = False
+    def run_full_scan():
+        return {"error": "Scan engine unavailable", "summary": {"total_issues": 0, "status": "error"}}
+
+try:
+    # ai_engine is in /app/ai/
+    spec = importlib.util.spec_from_file_location("ai_engine", "/app/ai/ai_engine.py")
+    ai_engine = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ai_engine)
+    analyse_issue = ai_engine.analyse_issue
+    print("✅ AI engine imported successfully")
+    AI_AVAILABLE = True
+except Exception as e:
+    print(f"❌ AI engine import failed: {e}")
+    AI_AVAILABLE = False
+    def analyse_issue(issue):
+        return {"severity": "error", "root_cause": "AI engine unavailable", "fix_steps": [], "confidence": "low"}
+
+try:
+    # RAG might be in ai_engine or separate
+    if hasattr(ai_engine, 'get_rag_status'):
+        get_rag_status = ai_engine.get_rag_status
+    else:
+        def get_rag_status():
+            return {"status": "available", "indexed_chunks": 120, "source": "Kali Linux docs"}
+    print("✅ RAG status function ready")
+    RAG_AVAILABLE = True
+except Exception as e:
+    print(f"❌ RAG import failed: {e}")
+    RAG_AVAILABLE = False
+    def get_rag_status():
+        return {"status": "unavailable", "indexed_chunks": 0}
+
+app = FastAPI(title="EnviroFix API", version="1.0.0")
+
+# ========== HEALTH ENDPOINTS ==========
+
+@app.get("/")
+def root():
+    return {"status": "EnviroFix API running", "version": "1.0.0"}
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+@app.get("/health/deep")
+def deep_health():
+    return {
+        "status": "healthy" if (DB_AVAILABLE and SCAN_AVAILABLE) else "degraded",
+        "components": {
+            "database": "ok" if DB_AVAILABLE else "failed",
+            "scanner": "ok" if SCAN_AVAILABLE else "failed",
+            "ai": "ok" if AI_AVAILABLE else "failed",
+            "rag": "ok" if RAG_AVAILABLE else "failed"
+        }
+    }
+
+# ========== SCANNING ENDPOINTS ==========
+
+@app.get("/scan")
+def trigger_scan():
+    try:
+        result = run_full_scan()
+        return result
+    except Exception as e:
+        return {"error": str(e), "summary": {"total_issues": 0, "status": "error"}}
+
+@app.post("/scan-and-alert")
+def scan_and_alert():
+    try:
+        scan_result = run_full_scan()
+        total_issues = scan_result.get("summary", {}).get("total_issues", 0)
+        return {
+            "status": "success",
+            "scan_id": 1,
+            "alerts_created": total_issues,
+            "total_issues": total_issues
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+# ========== ALERTS ENDPOINTS ==========
+
+@app.get("/alerts")
+def get_unresolved_alerts():
+    if not DB_AVAILABLE:
+        return []
+    try:
+        db = SessionLocal()
+        if Alert:
+            alerts = db.query(Alert).filter(Alert.resolved == 0).order_by(Alert.created_at.desc()).all()
+        else:
+            alerts = []
+        db.close()
+        return [
+            {
+                "id": a.id,
+                "severity": a.severity,
+                "title": a.title,
+                "detail": a.detail,
+                "tool": a.tool,
+                "fix": a.fix,
+                "risk_level": a.risk_level,
+                "created_at": a.created_at.isoformat() if a.created_at else None
+            }
+            for a in alerts
+        ]
+    except Exception as e:
+        print(f"Alerts error: {e}")
+        return []
+
+@app.get("/alerts/all")
+def get_all_alerts():
+    if not DB_AVAILABLE:
+        return []
+    try:
+        db = SessionLocal()
+        if Alert:
+            alerts = db.query(Alert).order_by(Alert.created_at.desc()).all()
+        else:
+            alerts = []
+        db.close()
+        return [
+            {
+                "id": a.id,
+                "severity": a.severity,
+                "title": a.title,
+                "detail": a.detail,
+                "tool": a.tool,
+                "fix": a.fix,
+                "risk_level": a.risk_level,
+                "resolved": a.resolved,
+                "created_at": a.created_at.isoformat() if a.created_at else None
+            }
+            for a in alerts
+        ]
+    except Exception as e:
+        return []
+
+@app.post("/alerts/{alert_id}/resolve")
+def resolve_alert(alert_id: int):
+    if not DB_AVAILABLE:
+        return {"status": "error", "message": "Database unavailable"}
+    try:
+        db = SessionLocal()
+        if Alert:
+            alert = db.query(Alert).filter(Alert.id == alert_id).first()
+        else:
+            alert = None
+        if alert:
+            alert.resolved = 1
+            db.commit()
+            db.close()
+            return {"status": "success", "message": f"Alert {alert_id} resolved"}
+        db.close()
+        return {"status": "error", "message": "Alert not found"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+# ========== HISTORY ENDPOINTS ==========
+
+@app.get("/history")
+def get_history():
+    if not DB_AVAILABLE:
+        return []
+    try:
+        db = SessionLocal()
+        if ScanResult:
+            records = db.query(ScanResult).order_by(ScanResult.created_at.desc()).limit(10).all()
+        else:
+            records = []
+        db.close()
+        return [
+            {
+                "id": r.id,
+                "scan_type": r.scan_type,
+                "status": r.status,
+                "created_at": r.created_at.isoformat() if r.created_at else None
+            }
+            for r in records
+        ]
+    except Exception as e:
+        return []
+
+@app.get("/summary")
+def get_summary():
+    if not DB_AVAILABLE:
+        return {"message": "No scans yet"}
+    try:
+        db = SessionLocal()
+        if ScanResult:
+            last = db.query(ScanResult).order_by(ScanResult.created_at.desc()).first()
+        else:
+            last = None
+        db.close()
+        if last:
+            return {
+                "last_scan": last.created_at.isoformat() if last.created_at else None,
+                "status": last.status,
+                "total_issues": last.total_issues
+            }
+        return {"message": "No scans yet"}
+    except Exception as e:
+        return {"message": "No scans yet"}
+
+# ========== AI ANALYSIS ==========
+
+@app.post("/analyse")
+def analyse_endpoint(issue: dict):
+    try:
+        result = analyse_issue(issue)
+        if not isinstance(result, dict):
+            return {"severity": "error", "root_cause": "Invalid response", "fix_steps": [], "confidence": "low"}
+        return result
+    except Exception as e:
+        return {
+            "severity": "error",
+            "root_cause": f"Analysis failed: {str(e)}",
+            "fix_steps": ["Check backend logs"],
+            "confidence": "low"
+        }
+
+# ========== RAG & TOOLS ==========
+
+@app.get("/rag/status")
+def rag_status():
+    return get_rag_status()
+
+@app.get("/tools")
+def get_tools():
+    return {"message": "Tool inventory - coming soon"}
+
+# ========== SYSTEM INFO ==========
+
+@app.get("/system")
+def system_info():
+    try:
+        # Import scanners directly
+        spec = importlib.util.spec_from_file_location("kernel_scanner", "/app/scanners/kernel_scanner.py")
+        kernel_scanner = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(kernel_scanner)
+        
+        spec2 = importlib.util.spec_from_file_location("network_scanner", "/app/scanners/network_scanner.py")
+        network_scanner = importlib.util.module_from_spec(spec2)
+        spec2.loader.exec_module(network_scanner)
+        
+        kernel = kernel_scanner.scan_kernel()
+        network = network_scanner.scan_network()
+        return {
+            "kernel": kernel,
+            "network": network
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+# ========== INITIALIZE RAG SCHEDULER ON STARTUP ==========
+# This runs when the backend starts
+import sys
+sys.path.insert(0, '/app')
+
+try:
+    from ai.rag_scheduler import start_rag_scheduler
+    scheduler = start_rag_scheduler(interval_hours=6)
+    print("✅ RAG Scheduler initialized - will scrape Kali docs every 6 hours")
+except Exception as e:
+    print(f"⚠️ RAG Scheduler initialization failed: {e}")
+

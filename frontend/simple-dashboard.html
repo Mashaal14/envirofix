@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>EnviroFix Dashboard</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0e27;
+            color: #00ff9d;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            border-bottom: 2px solid #00ff9d;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+        }
+        .card {
+            background: rgba(0, 255, 157, 0.1);
+            border: 1px solid #00ff9d;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .alert-critical { border-left: 4px solid #ff0055; }
+        .alert-warning { border-left: 4px solid #ffaa00; }
+        pre {
+            background: #000;
+            padding: 10px;
+            overflow-x: auto;
+        }
+        button {
+            background: #00ff9d;
+            color: #0a0e27;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #00cc7d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔧 EnviroFix</h1>
+            <p>AI-Powered Kali Linux Environment Intelligence</p>
+        </div>
+        
+        <div class="card">
+            <h2>📊 System Health</h2>
+            <div id="health"></div>
+        </div>
+        
+        <div class="card">
+            <h2>⚠️ Active Alerts</h2>
+            <div id="alerts"></div>
+            <button onclick="runScan()">🔄 Run Scan Now</button>
+        </div>
+        
+        <div class="card">
+            <h2>📜 Recent History</h2>
+            <div id="history"></div>
+        </div>
+        
+        <div class="card">
+            <h2>🧠 AI Analysis</h2>
+            <div id="ai-analysis"></div>
+            <button onclick="analyzeIssue()">🤖 Analyze Kernel Issue</button>
+        </div>
+    </div>
+    
+    <script>
+        async function fetchJSON(url) {
+            const response = await fetch(url);
+            return response.json();
+        }
+        
+        async function updateDashboard() {
+            // Health
+            const health = await fetchJSON('http://localhost:7070/health/deep');
+            document.getElementById('health').innerHTML = `
+                <pre>${JSON.stringify(health, null, 2)}</pre>
+            `;
+            
+            // Alerts
+            const alerts = await fetchJSON('http://localhost:7070/alerts');
+            if (alerts.length === 0) {
+                document.getElementById('alerts').innerHTML = '<p>✅ No active alerts</p>';
+            } else {
+                document.getElementById('alerts').innerHTML = alerts.map(a => `
+                    <div class="alert-${a.severity}">
+                        <strong>[${a.severity.toUpperCase()}]</strong> ${a.title}<br>
+                        <small>${a.detail}</small><br>
+                        <code>${a.fix}</code>
+                    </div>
+                    <hr>
+                `).join('');
+            }
+            
+            // History
+            const history = await fetchJSON('http://localhost:7070/history');
+            document.getElementById('history').innerHTML = `
+                <pre>${JSON.stringify(history, null, 2)}</pre>
+            `;
+        }
+        
+        async function runScan() {
+            document.getElementById('alerts').innerHTML = '<p>⏳ Scanning system...</p>';
+            const result = await fetch('http://localhost:7070/scan-and-alert', {method: 'POST'});
+            const data = await result.json();
+            alert(`Scan complete! ${data.alerts_created} alerts created.`);
+            updateDashboard();
+        }
+        
+        async function analyzeIssue() {
+            document.getElementById('ai-analysis').innerHTML = '<p>🤔 AI thinking...</p>';
+            const response = await fetch('http://localhost:7070/analyse', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({issue: "Missing kernel headers", tool: "kernel"})
+            });
+            const data = await response.json();
+            document.getElementById('ai-analysis').innerHTML = `
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+            `;
+        }
+        
+        // Update every 30 seconds
+        updateDashboard();
+        setInterval(updateDashboard, 30000);
+    </script>
+</body>
+</html>

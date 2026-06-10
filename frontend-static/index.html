@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EnviroFix - AI-Powered System Intelligence</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0D1117; color: #E6EDF3; }
+        
+        /* Sidebar */
+        .sidebar { position: fixed; left: 0; top: 0; width: 260px; height: 100%; background: #161B22; border-right: 1px solid #30363D; transition: all 0.3s; z-index: 100; }
+        .sidebar.collapsed { width: 70px; }
+        .sidebar-header { padding: 20px; border-bottom: 1px solid #30363D; display: flex; align-items: center; justify-content: space-between; }
+        .sidebar-logo { display: flex; align-items: center; gap: 12px; }
+        .sidebar-logo img { width: 32px; height: 32px; }
+        .sidebar-logo span { font-size: 18px; font-weight: 600; }
+        .sidebar-toggle { background: none; border: none; color: #8B949E; cursor: pointer; font-size: 20px; }
+        .sidebar-nav { margin-top: 20px; }
+        .nav-item { display: flex; align-items: center; padding: 12px 20px; cursor: pointer; transition: all 0.2s; color: #8B949E; }
+        .nav-item:hover { background: #21262D; color: #E6EDF3; }
+        .nav-item.active { background: rgba(47, 129, 247, 0.1); color: #2F81F7; border-right: 2px solid #2F81F7; }
+        .nav-icon { font-size: 20px; width: 24px; text-align: center; }
+        .nav-label { margin-left: 12px; font-size: 14px; }
+        .sidebar.collapsed .nav-label { display: none; }
+        .sidebar.collapsed .sidebar-logo span { display: none; }
+        
+        /* Main Content */
+        .main-content { margin-left: 260px; transition: all 0.3s; min-height: 100vh; }
+        .sidebar.collapsed ~ .main-content { margin-left: 70px; }
+        
+        /* Header */
+        .header { background: #161B22; border-bottom: 1px solid #30363D; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 50; }
+        .header-title h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+        .header-title p { font-size: 12px; color: #8B949E; }
+        .header-actions { display: flex; gap: 12px; }
+        
+        /* Buttons */
+        .btn-primary { background: #2F81F7; color: white; border: none; padding: 8px 20px; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.2s; }
+        .btn-primary:hover { background: #1f6feb; transform: translateY(-1px); }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .btn-secondary { background: #21262D; color: #E6EDF3; border: 1px solid #30363D; padding: 8px 20px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        .btn-secondary:hover { background: #30363D; }
+        
+        /* Container */
+        .container { padding: 24px; max-width: 1400px; }
+        
+        /* Stats Cards */
+        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+        .stat-card { background: #161B22; border: 1px solid #30363D; border-radius: 12px; padding: 20px; text-align: center; transition: transform 0.2s; cursor: pointer; }
+        .stat-card:hover { transform: translateY(-2px); border-color: #2F81F7; }
+        .stat-label { color: #8B949E; font-size: 14px; margin-bottom: 8px; }
+        .stat-value { font-size: 36px; font-weight: bold; }
+        
+        /* Sections */
+        .section { background: #161B22; border: 1px solid #30363D; border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+        .section h2 { margin-bottom: 16px; font-size: 18px; display: flex; align-items: center; gap: 8px; }
+        
+        /* Alerts */
+        .alert-item { border-radius: 8px; padding: 16px; margin-bottom: 12px; cursor: pointer; transition: all 0.2s; }
+        .alert-item.critical { border-left: 3px solid #F85149; background: rgba(248, 81, 73, 0.05); }
+        .alert-item.warning { border-left: 3px solid #D29922; background: rgba(210, 153, 34, 0.05); }
+        .alert-item.info { border-left: 3px solid #58A6FF; background: rgba(88, 166, 255, 0.05); }
+        .alert-item:hover { transform: translateX(4px); background: rgba(47, 129, 247, 0.1); }
+        .alert-title { font-weight: 600; margin-bottom: 8px; }
+        .alert-detail { font-size: 14px; color: #8B949E; margin-bottom: 8px; }
+        .alert-fix { font-size: 12px; color: #2F81F7; font-family: monospace; margin-top: 8px; }
+        
+        /* System Info */
+        .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+        .info-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #30363D; }
+        .info-label { color: #8B949E; }
+        .info-value { font-family: monospace; }
+        
+        /* Modal */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 1000; align-items: center; justify-content: center; }
+        .modal-content { background: #161B22; border: 1px solid #2F81F7; border-radius: 12px; max-width: 700px; width: 90%; max-height: 85vh; overflow-y: auto; }
+        .modal-header { padding: 16px; border-bottom: 1px solid #30363D; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: #161B22; }
+        .modal-header h3 { color: #2F81F7; }
+        .modal-body { padding: 20px; }
+        .close-btn { background: none; border: none; color: #8B949E; font-size: 24px; cursor: pointer; }
+        .code-block { background: #0D1117; border-radius: 8px; padding: 12px; margin: 12px 0; font-family: monospace; font-size: 12px; }
+        .copy-btn { background: none; border: 1px solid #2F81F7; color: #2F81F7; padding: 4px 12px; border-radius: 6px; cursor: pointer; margin-top: 8px; transition: all 0.2s; }
+        .copy-btn:hover { background: #2F81F7; color: white; }
+        
+        /* Status */
+        .loading { text-align: center; padding: 40px; color: #8B949E; }
+        .error { color: #F85149; text-align: center; padding: 20px; }
+        .spinner { animation: spin 1s linear infinite; display: inline-block; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .text-success { color: #3FB950; }
+        .text-critical { color: #F85149; }
+        .text-warning { color: #D29922; }
+        
+        @media (max-width: 768px) { .stats { grid-template-columns: repeat(2, 1fr); } .sidebar { transform: translateX(-100%); } .main-content { margin-left: 0; } }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <img src="logo.png" onerror="this.style.display='none'" id="logoImg">
+                <span>EnviroFix</span>
+            </div>
+            <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+        </div>
+        <div class="sidebar-nav">
+            <div class="nav-item active" onclick="setPage('dashboard')">
+                <div class="nav-icon">📊</div>
+                <div class="nav-label">Dashboard</div>
+            </div>
+            <div class="nav-item" onclick="setPage('scanners')">
+                <div class="nav-icon">🔍</div>
+                <div class="nav-label">Scanners</div>
+            </div>
+            <div class="nav-item" onclick="setPage('system')">
+                <div class="nav-icon">💻</div>
+                <div class="nav-label">System Details</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent">
+        <div class="header">
+            <div class="header-title">
+                <h1 id="pageTitle">Dashboard</h1>
+                <p id="pageSubtitle">Real-time system intelligence</p>
+            </div>
+            <div class="header-actions">
+                <button class="btn-primary" id="scanBtn" onclick="runFullScan()">
+                    <span id="scanText">🔄 Deep Scan</span>
+                </button>
+                <button class="btn-secondary" onclick="refreshAllData()">🔄 Refresh</button>
+            </div>
+        </div>
+        
+        <div class="container" id="pageContent">
+            <!-- Dashboard Page -->
+            <div id="dashboardPage">
+                <div class="stats" id="stats">
+                    <div class="stat-card" onclick="refreshAllData()">
+                        <div class="stat-label">Health Score</div>
+                        <div class="stat-value" id="healthScore">--</div>
+                    </div>
+                    <div class="stat-card" onclick="document.getElementById('alertsList').scrollIntoView()">
+                        <div class="stat-label">Critical</div>
+                        <div class="stat-value text-critical" id="criticalCount">--</div>
+                    </div>
+                    <div class="stat-card" onclick="document.getElementById('alertsList').scrollIntoView()">
+                        <div class="stat-label">Warnings</div>
+                        <div class="stat-value text-warning" id="warningCount">--</div>
+                    </div>
+                    <div class="stat-card" onclick="runFullScan()">
+                        <div class="stat-label">Updates Available</div>
+                        <div class="stat-value" id="updatesCount">--</div>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h2>⚠️ Active Issues Detected</h2>
+                    <div id="alertsList">Loading system data...</div>
+                </div>
+                
+                <div class="section">
+                    <h2>💻 System Snapshot</h2>
+                    <div id="systemInfo">Loading...</div>
+                </div>
+            </div>
+            
+            <!-- Scanners Page -->
+            <div id="scannersPage" style="display: none;">
+                <div class="section">
+                    <h2>🔧 Scanner Modules Status</h2>
+                    <div id="scannerStatus">Loading scanner information...</div>
+                </div>
+            </div>
+            
+            <!-- System Details Page -->
+            <div id="systemPage" style="display: none;">
+                <div class="section">
+                    <h2>📊 Full System Scan Results</h2>
+                    <div id="fullScanResults">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Analysis Modal -->
+    <div id="analysisModal" class="modal" onclick="closeModalOnOutside(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3>🤖 DeepSeek-R1 AI Analysis</h3>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="analysisBody">
+                <div class="loading">Loading AI analysis...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:7070';
+        let currentPage = 'dashboard';
+        
+        // Toggle sidebar
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('collapsed');
+        }
+        
+        // Page navigation
+        function setPage(page) {
+            currentPage = page;
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            event.target.closest('.nav-item').classList.add('active');
+            
+            document.getElementById('dashboardPage').style.display = page === 'dashboard' ? 'block' : 'none';
+            document.getElementById('scannersPage').style.display = page === 'scanners' ? 'block' : 'none';
+            document.getElementById('systemPage').style.display = page === 'system' ? 'block' : 'none';
+            
+            const titles = { dashboard: 'Dashboard', scanners: 'Scanner Modules', system: 'System Details' };
+            document.getElementById('pageTitle').innerText = titles[page];
+            
+            if (page === 'scanners') loadScannerInfo();
+            if (page === 'system') loadFullScanResults();
+        }
+        
+        // Load all dashboard data
+        async function refreshAllData() {
+            await Promise.all([loadAlerts(), loadSystemInfo()]);
+        }
+        
+        // Load alerts from backend
+        async function loadAlerts() {
+            try {
+                const response = await fetch(`${API_BASE}/alerts`);
+                const alerts = await response.json();
+                
+                const critical = alerts.filter(a => a.severity === 'critical').length;
+                const warnings = alerts.filter(a => a.severity === 'warning').length;
+                const health = alerts.length === 0 ? 100 : Math.max(0, 100 - (critical * 25 + warnings * 10));
+                
+                document.getElementById('healthScore').innerHTML = health + '%';
+                document.getElementById('criticalCount').innerHTML = critical;
+                document.getElementById('warningCount').innerHTML = warnings;
+                
+                // Find updates count
+                const updateAlert = alerts.find(a => a.title === 'Packages Outdated');
+                const updateCount = updateAlert ? updateAlert.detail.match(/\d+/)?.[0] || '0' : '0';
+                document.getElementById('updatesCount').innerHTML = updateCount;
+                
+                if (alerts.length === 0) {
+                    document.getElementById('alertsList').innerHTML = '<div class="loading">✅ No active issues detected. System is healthy!</div>';
+                } else {
+                    document.getElementById('alertsList').innerHTML = alerts.map(alert => `
+                        <div class="alert-item ${alert.severity}" onclick='analyzeIssue(${JSON.stringify(alert)})'>
+                            <div class="alert-title">${alert.severity.toUpperCase()}: ${escapeHtml(alert.title)}</div>
+                            <div class="alert-detail">${escapeHtml(alert.detail)}</div>
+                            <div class="alert-fix">💡 Fix: ${escapeHtml(alert.fix)}</div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Failed to load alerts:', error);
+                document.getElementById('alertsList').innerHTML = '<div class="error">❌ Cannot connect to backend. Make sure EnviroFix is running.</div>';
+            }
+        }
+        
+        // Load system information
+        async function loadSystemInfo() {
+            try {
+                const response = await fetch(`${API_BASE}/system`);
+                const system = await response.json();
+                
+                document.getElementById('systemInfo').innerHTML = `
+                    <div class="info-grid">
+                        <div class="info-row"><span class="info-label">🐧 Kernel Version</span><span class="info-value">${escapeHtml(system.kernel?.version || 'Unknown')}</span></div>
+                        <div class="info-row"><span class="info-label">📦 Kernel Headers</span><span class="info-value ${system.kernel?.headers_installed ? 'text-success' : 'text-warning'}">${system.kernel?.headers_installed ? '✅ Installed' : '⚠️ Missing'}</span></div>
+                        <div class="info-row"><span class="info-label">🔧 Broken Dependencies</span><span class="info-value ${system.broken_dependencies ? 'text-critical' : 'text-success'}">${system.broken_dependencies ? '❌ Detected' : '✅ None'}</span></div>
+                        <div class="info-row"><span class="info-label">📦 Upgradable Packages</span><span class="info-value ${system.upgradable > 0 ? 'text-warning' : 'text-success'}">${system.upgradable || 0}</span></div>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Failed to load system info:', error);
+                document.getElementById('systemInfo').innerHTML = '<div class="error">❌ Failed to load system information</div>';
+            }
+        }
+        
+        // Load scanner information
+        async function loadScannerInfo() {
+            try {
+                const scan = await fetch(`${API_BASE}/system/scan`).then(r => r.json());
+                document.getElementById('scannerStatus').innerHTML = `
+                    <div class="info-grid">
+                        <div class="info-row"><span>Kernel Scanner</span><span class="${scan.kernel?.headers_installed ? 'text-success' : 'text-warning'}">${scan.kernel?.headers_installed ? 'Healthy' : 'Issue Detected'}</span></div>
+                        <div class="info-row"><span>APT Scanner</span><span class="${scan.upgradable_count > 0 ? 'text-warning' : 'text-success'}">${scan.upgradable_count > 0 ? `${scan.upgradable_count} updates available` : 'Up to date'}</span></div>
+                        <div class="info-row"><span>Dependency Scanner</span><span class="${scan.broken_dependencies?.has_broken ? 'text-critical' : 'text-success'}">${scan.broken_dependencies?.has_broken ? 'Broken dependencies' : 'Clean'}</span></div>
+                        <div class="info-row"><span>Version Conflict Scanner</span><span class="${scan.version_conflicts?.length > 0 ? 'text-warning' : 'text-success'}">${scan.version_conflicts?.length > 0 ? `${scan.version_conflicts.length} conflicts` : 'No conflicts'}</span></div>
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('scannerStatus').innerHTML = '<div class="error">Failed to load scanner status</div>';
+            }
+        }
+        
+        // Load full scan results
+        async function loadFullScanResults() {
+            try {
+                const scan = await fetch(`${API_BASE}/system/scan`).then(r => r.json());
+                document.getElementById('fullScanResults').innerHTML = `
+                    <pre style="background: #0D1117; padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 12px;">${JSON.stringify(scan, null, 2)}</pre>
+                `;
+            } catch (error) {
+                document.getElementById('fullScanResults').innerHTML = '<div class="error">Failed to load scan results</div>';
+            }
+        }
+        
+        // Run full system scan
+        async function runFullScan() {
+            const scanBtn = document.getElementById('scanBtn');
+            const scanText = document.getElementById('scanText');
+            scanBtn.disabled = true;
+            scanText.innerHTML = '<span class="spinner">🔄</span> Scanning...';
+            document.getElementById('alertsList').innerHTML = '<div class="loading"><span class="spinner">🔍</span> Running comprehensive system scan...</div>';
+            
+            try {
+                await fetch(`${API_BASE}/scan-and-alert`, { method: 'POST' });
+                setTimeout(async () => {
+                    await refreshAllData();
+                    scanBtn.disabled = false;
+                    scanText.innerHTML = '🔄 Deep Scan';
+                    if (currentPage === 'scanners') loadScannerInfo();
+                    if (currentPage === 'system') loadFullScanResults();
+                }, 2000);
+            } catch (error) {
+                console.error('Scan failed:', error);
+                scanBtn.disabled = false;
+                scanText.innerHTML = '🔄 Deep Scan';
+                refreshAllData();
+            }
+        }
+        
+        // Analyze issue with AI
+        async function analyzeIssue(alert) {
+            const modal = document.getElementById('analysisModal');
+            const body = document.getElementById('analysisBody');
+            modal.style.display = 'flex';
+            body.innerHTML = '<div class="loading"><span class="spinner">🤔</span> AI is analyzing the system state...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/analyse`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ issue: alert.title, tool: alert.tool })
+                });
+                const analysis = await response.json();
+                
+                body.innerHTML = `
+                    <div style="margin-bottom: 20px;">
+                        <strong style="color: #2F81F7;">📋 Root Cause Analysis</strong>
+                        <p style="margin-top: 8px; color: #8B949E; line-height: 1.5;">${escapeHtml(analysis.root_cause || 'Analysis complete')}</p>
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <strong style="color: #2F81F7;">🔧 Recommended Fix Steps</strong>
+                        <div class="code-block">
+                            ${(analysis.fix_steps || ['sudo apt update', 'sudo apt upgrade -y']).map(cmd => `<div style="margin: 4px 0;">$ ${escapeHtml(cmd)}</div>`).join('')}
+                        </div>
+                        <button class="copy-btn" onclick="copyFixCommands()">📋 Copy All Commands</button>
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <strong style="color: #2F81F7;">⚠️ Risk Level</strong>
+                        <div><span style="display: inline-block; padding: 4px 12px; border-radius: 16px; font-size: 12px; margin-top: 8px; background: rgba(210, 153, 34, 0.2); color: #D29922;">${escapeHtml(analysis.risk_level || 'Caution')}</span></div>
+                    </div>
+                    <div>
+                        <strong style="color: #2F81F7;">📚 What You'll Learn</strong>
+                        <p style="margin-top: 8px; color: #8B949E; line-height: 1.5;">${escapeHtml(analysis.teaches || 'Understanding system dependencies helps prevent future issues.')}</p>
+                    </div>
+                    <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #30363D;">
+                        <span style="font-size: 11px; color: #8B949E;">🤖 Powered by DeepSeek-R1 (local Ollama) | Confidence: ${escapeHtml(analysis.confidence || 'high')}</span>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('AI analysis failed:', error);
+                body.innerHTML = `<div class="error">❌ AI analysis failed: ${error.message}. Make sure Ollama is running.</div>`;
+            }
+        }
+        
+        // Copy fix commands to clipboard
+        function copyFixCommands() {
+            const codeBlock = document.querySelector('.code-block');
+            if (codeBlock) {
+                const commands = Array.from(codeBlock.querySelectorAll('div')).map(div => div.textContent.substring(2));
+                navigator.clipboard.writeText(commands.join('\n'));
+                
+                // Show temporary confirmation
+                const copyBtn = document.querySelector('.copy-btn');
+                const originalText = copyBtn.innerHTML;
+                copyBtn.innerHTML = '✅ Copied!';
+                setTimeout(() => { copyBtn.innerHTML = originalText; }, 2000);
+            }
+        }
+        
+        // Modal functions
+        function closeModal() {
+            document.getElementById('analysisModal').style.display = 'none';
+        }
+        
+        function closeModalOnOutside(event) {
+            if (event.target === document.getElementById('analysisModal')) {
+                closeModal();
+            }
+        }
+        
+        // Escape HTML
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Initialize dashboard
+        refreshAllData();
+        setInterval(refreshAllData, 30000);
+        
+        // Keyboard shortcut: ESC to close modal
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

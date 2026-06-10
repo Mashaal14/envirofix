@@ -1,0 +1,7 @@
+__pycache__
+*.pyc
+*.pyo
+.env
+venv/
+envirofix.db
+envirofix_knowledge/

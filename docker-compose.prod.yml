@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: envirofix_postgres
+    environment:
+      POSTGRES_DB: envirofix
+      POSTGRES_USER: envirofix
+      POSTGRES_PASSWORD: envirofix123
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - envirofix_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U envirofix"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: envirofix_backend
+    environment:
+      DATABASE_URL: postgresql://envirofix:envirofix123@postgres:5432/envirofix
+      OLLAMA_HOST: http://host.docker.internal:11434
+    ports:
+      - "7070:7070"
+    volumes:
+      - ./backend:/app
+      - knowledge_data:/app/ai/envirofix_knowledge
+    networks:
+      - envirofix_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  frontend:
+    build: ./frontend
+    container_name: envirofix_frontend
+    ports:
+      - "3000:80"
+    networks:
+      - envirofix_network
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  knowledge_data:
+
+networks:
+  envirofix_network:
+    driver: bridge

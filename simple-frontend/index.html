@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>EnviroFix</title>
+    <style>
+        body { font-family: monospace; background: #0D1117; color: #E6EDF3; padding: 20px; }
+        .card { background: #161B22; border: 1px solid #30363D; border-radius: 8px; padding: 20px; margin: 10px 0; }
+        button { background: #2F81F7; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
+        pre { background: #0D1117; padding: 10px; overflow-x: auto; }
+        .alert { border-left: 3px solid #D29922; margin: 10px 0; padding: 10px; background: rgba(210,153,34,0.1); }
+    </style>
+</head>
+<body>
+    <h1>🔧 EnviroFix</h1>
+    <button onclick="runScan()">🔄 Scan System</button>
+    <button onclick="loadData()">🔄 Refresh</button>
+    <div id="status">Loading...</div>
+    <div id="alerts"></div>
+    <div id="system"></div>
+
+    <script>
+        const API = 'http://localhost:7070';
+        
+        async function loadData() {
+            document.getElementById('status').innerHTML = 'Loading...';
+            try {
+                const alerts = await fetch(API + '/alerts').then(r => r.json());
+                const system = await fetch(API + '/system').then(r => r.json());
+                
+                document.getElementById('status').innerHTML = '✅ Connected to backend';
+                document.getElementById('alerts').innerHTML = '<h3>⚠️ Alerts</h3>' + alerts.map(a => 
+                    `<div class="alert"><strong>${a.title}</strong><br>${a.detail}<br><code>${a.fix}</code></div>`
+                ).join('');
+                
+                document.getElementById('system').innerHTML = `
+                    <h3>💻 System</h3>
+                    <div class="card">
+                        <div>Kernel: ${system.kernel?.kernel_version}</div>
+                        <div>Headers: ${system.kernel?.kernel_headers_installed ? '✅' : '❌'}</div>
+                        <div>VPN: ${system.network?.vpn_active ? 'Active' : 'Inactive'}</div>
+                    </div>
+                `;
+            } catch(e) {
+                document.getElementById('status').innerHTML = '❌ Backend not reachable: ' + e.message;
+            }
+        }
+        
+        async function runScan() {
+            document.getElementById('status').innerHTML = 'Scanning...';
+            await fetch(API + '/scan-and-alert', {method: 'POST'});
+            setTimeout(loadData, 2000);
+        }
+        
+        loadData();
+        setInterval(loadData, 30000);
+    </script>
+</body>
+</html>

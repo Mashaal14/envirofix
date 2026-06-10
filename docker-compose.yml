@@ -1,0 +1,38 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: envirofix_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: envirofix
+      POSTGRES_USER: envirofix
+      POSTGRES_PASSWORD: envirofix123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    container_name: envirofix_backend
+    restart: always
+    ports:
+      - "7070:7070"
+    environment:
+      DATABASE_URL: postgresql://envirofix:envirofix123@postgres:5432/envirofix
+    depends_on:
+      - postgres
+    volumes:
+      - ./backend:/app
+
+  frontend:
+    image: nginx:alpine
+    container_name: envirofix_frontend
+    restart: always
+    ports:
+      - "3000:80"
+    volumes:
+      - ./frontend-static:/usr/share/nginx/html:ro
+
+volumes:
+  postgres_data:
