@@ -1,6 +1,39 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.tar.gz
+*.zip
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker
+*.log
+
+# RAG knowledge base (can be regenerated)
 backend/ai/envirofix_knowledge/
-*.safetensors
-*.bin
-backend/ai/envirofix_knowledge/
-*.safetensors
-*.bin
+envirofix_knowledge/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary
+*.tmp
+*.bak

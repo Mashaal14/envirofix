@@ -24,6 +24,9 @@ services:
       - postgres
     volumes:
       - ./backend:/app
+      - /usr/src:/usr/src:ro          # kernel headers
+      - /lib/modules:/lib/modules:ro  # kernel modules
+      - /var/lib/dpkg:/var/lib/dpkg:ro # dpkg database
 
   frontend:
     image: nginx:alpine
