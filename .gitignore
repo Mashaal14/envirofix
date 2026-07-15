@@ -37,3 +37,4 @@ Thumbs.db
 # Temporary
 *.tmp
 *.bak
+backend/envirofix_knowledge/
