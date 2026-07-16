@@ -25,8 +25,9 @@ services:
     environment:
       DATABASE_URL: postgresql://envirofix:envirofix123@postgres:5432/envirofix
       OLLAMA_HOST: http://host.docker.internal:11434
+      USE_OLLAMA: ${USE_OLLAMA:-true}
     ports:
-      - "7070:7070"
+      - "127.0.0.1:7070:7070"
     volumes:
       - ./backend:/app
       - knowledge_data:/app/ai/envirofix_knowledge
@@ -43,7 +44,7 @@ services:
     build: ./frontend
     container_name: envirofix_frontend
     ports:
-      - "3000:80"
+      - "127.0.0.1:3000:80"
     networks:
       - envirofix_network
     depends_on:

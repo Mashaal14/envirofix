@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:7070';
+const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
 class EnviroFixAPI {
   async request(endpoint, options = {}) {

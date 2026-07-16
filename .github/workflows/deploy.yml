@@ -1,0 +1,73 @@
+name: Deploy EnviroFix
+
+# Runs on the self-hosted runner installed on the target host (the same box
+# that runs docker-compose.prod.yml). There is nothing to build/deploy on a
+# GitHub-hosted runner here — this pipeline IS the deployment.
+on:
+  push:
+    branches: [master]
+  workflow_dispatch: {}
+
+concurrency:
+  group: envirofix-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Do NOT let checkout run `git clean -ffdx` (its default). This host
+          # keeps .env, envirofix.db, and the RAG knowledge base as untracked
+          # files between deploys — a clean checkout would delete all of them.
+          clean: false
+
+      - name: Verify required host config is present
+        run: |
+          if [ ! -f .env ]; then
+            echo "::error::.env not found in $(pwd). Create it once on this runner host (it is gitignored and never comes from the repo) before the first deploy."
+            exit 1
+          fi
+
+      - name: Validate compose file
+        run: docker compose -f docker-compose.prod.yml config --quiet
+
+      - name: Build and deploy
+        run: docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
+
+      - name: Wait for backend health check
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:7070/health > /dev/null; then
+              echo "Backend is healthy."
+              exit 0
+            fi
+            echo "Waiting for backend... ($i/30)"
+            sleep 2
+          done
+          echo "::error::Backend did not become healthy within 60s. Recent backend logs:"
+          docker logs envirofix_backend --tail 100
+          exit 1
+
+      - name: Wait for frontend
+        run: |
+          for i in $(seq 1 15); do
+            if curl -fsS http://127.0.0.1:3000/ > /dev/null; then
+              echo "Frontend is serving."
+              exit 0
+            fi
+            echo "Waiting for frontend... ($i/15)"
+            sleep 2
+          done
+          echo "::error::Frontend did not come up within 30s. Recent frontend logs:"
+          docker logs envirofix_frontend --tail 100
+          exit 1
+
+      - name: Prune old images
+        if: always()
+        run: docker image prune -f

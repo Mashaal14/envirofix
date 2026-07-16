@@ -20,6 +20,7 @@ services:
       - "7070:7070"
     environment:
       DATABASE_URL: postgresql://envirofix:envirofix123@postgres:5432/envirofix
+      USE_OLLAMA: ${USE_OLLAMA:-true}
     depends_on:
       - postgres
     volumes:

@@ -37,13 +37,27 @@ def get_version_conflicts():
                 conflicts.append({"package": pkg, "version": ver, "expected": first})
     return conflicts
 
+# Kernel-headers metapackage names vary by distro/kernel flavor:
+# Debian/Kali use "amd64"/"arm64", Ubuntu desktop/server use "generic",
+# and Ubuntu cloud kernels use "virtual" or "aws".
+HEADERS_METAPACKAGES = [
+    "linux-headers-generic",
+    "linux-headers-virtual",
+    "linux-headers-aws",
+    "linux-headers-amd64",
+    "linux-headers-arm64",
+]
+
 def get_kernel_info():
     kernel = subprocess.run(["uname", "-r"], capture_output=True, text=True).stdout.strip()
     headers_check = subprocess.run(["dpkg", "-l", f"linux-headers-{kernel}"], capture_output=True, text=True)
     headers_installed = "ii" in headers_check.stdout
     if not headers_installed:
-        meta_check = subprocess.run(["dpkg", "-l", "linux-headers-amd64"], capture_output=True, text=True)
-        headers_installed = "ii" in meta_check.stdout
+        for meta_pkg in HEADERS_METAPACKAGES:
+            meta_check = subprocess.run(["dpkg", "-l", meta_pkg], capture_output=True, text=True)
+            if "ii" in meta_check.stdout:
+                headers_installed = True
+                break
     return {"version": kernel, "headers_installed": headers_installed}
 
 def full_system_scan():

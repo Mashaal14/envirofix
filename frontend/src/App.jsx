@@ -4,7 +4,7 @@ import {
   Menu, Bell, Loader2, Copy, X, ChevronRight, ChevronLeft
 } from 'lucide-react';
 
-const API_BASE = 'http://localhost:7070';
+const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
 const App = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
